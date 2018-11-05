@@ -1,0 +1,60 @@
+---
+title: "DriveTime App Pitch"
+author: "Kim"
+date: "11/04/2018"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(rgeos)
+library(osrm)
+library(leaflet)
+```
+
+## Where should we go for the weekend? 
+
+- Know how long you're willing to drive
+- Know where you are
+- How do you figure out what the possibilities are?
+
+## DriveTimes shows equal driving times
+
+- Uses Open Street Map routing service
+- Needs 5 inputs from the user
+    - Start location (lat/long coordinate)
+    - Minimum drive time
+    - Maximum drive time
+    - Increments to calculate
+
+## Behind the Scenes I
+- Calculates a travel matrix
+- Creates polygons of equal drive times
+
+```{r travelmatrix, echo = TRUE}
+isodat <- osrmIsochrone(loc = c(-115.176, 36.151), breaks = seq(180, 240, 30))
+timebreaks <- seq(180, 240, 30)
+faclevels <- c(paste(0, "to", timebreaks[1], "min"), paste(timebreaks[-length(timebreaks)], "to", timebreaks[-1], "min"))
+isodat@data$drive_times <-  factor(paste(isodat@data$min, "to", isodat@data$max, "min"), levels = faclevels)
+print(isodat@data)
+```
+
+## Behind the Scenes II
+- Displays using the leaflet package
+
+```{r display}
+factpal <- colorFactor(rev(heat.colors(length(timebreaks))), isodat@data$drive_times)
+leaflet() %>% 
+            setView(-115.176, 36.151, zoom = 7) %>%
+            addProviderTiles("CartoDB.Positron", group="Greyscale") %>% 
+            addMarkers(lng = -115.176, lat = 36.151, popup = "Start Location") %>% 
+            addPolygons(fill=TRUE, stroke=TRUE, color = "black",
+                        fillColor = ~factpal(isodat@data$drive_times),
+                        weight=0.5, fillOpacity=0.2,
+                        data = isodat, popup = isodat@data$drive_times,
+                        group = "Drive Time") %>% 
+            # Legend
+            addLegend("bottomright", pal = factpal, values = isodat@data$drive_time,   title = "Drive Time")
+
+```
+
